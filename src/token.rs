@@ -1,4 +1,4 @@
-pub const TAB_SIZE: u8 = 4;
+pub const TAB_SIZE: usize = 4;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Loc {
@@ -95,9 +95,9 @@ pub enum TokenizeError {
 pub type TokenizeResult = Result<Vec<Token>, TokenizeError>;
 
 pub fn tokenize(input: &str) -> TokenizeResult {
-    let mut tokens = Vec::new();
     let mut iter = input.chars().peekable();
     let mut loc = Loc::default();
+    let mut tokens = Vec::new();
 
     while let Some(c) = iter.next() {
         match c {
@@ -106,7 +106,7 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                     loc.line += 1;
                     loc.column = 0;
                 } else {
-                    loc.column += 1;
+                    loc.column += if c == '\t' { TAB_SIZE } else { 1 };
                 }
                 continue;
             }
