@@ -6,89 +6,58 @@ pub struct Loc {
     column: usize,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum TokenKind {
+    Identifier(String),
+    Comment(String),   // # comment
+    Equal,             // =
+    Colon,             // :
+    Semicolon,         // ;
+    OpenParen,         // (
+    CloseParen,        // )
+    OpenBrace,         // {
+    CloseBrace,        // }
+    OpenAngleBracket,  // <
+    CloseAngleBracket, // >
+
+    DirectiveExtern, //  @extern
+    DirectiveImport, //  @import
+
+    LangCpp,  // +c
+    LangJava, // +j
+    LangObjC, // +o
+
+    KeywordEnum,      // enum
+    KeywordRecord,    // record
+    KeywordInterface, // interface
+    KeywordStatic,    // static
+    KeywordDeriving,  // deriving
+
+    KeywordBool,     // bool
+    KeywordI8,       // i8
+    KeywordI16,      // i16
+    KeywordI32,      // i32
+    KeywordI64,      // i64
+    KeywordF32,      // f32
+    KeywordF64,      // f64
+    KeywordString,   // string
+    KeywordBinary,   // binary
+    KeywordDate,     // date
+    KeywordList,     // list
+    KeywordSet,      // set
+    KeywordMap,      // map
+    KeywordOptional, // optional
+}
+
 #[derive(Debug)]
-pub enum Token {
-    Identifier(String, Loc),
-    Comment(String, Loc),   // # comment
-    Equal(Loc),             // =
-    Colon(Loc),             // :
-    Semicolon(Loc),         // ;
-    OpenParen(Loc),         // (
-    CloseParen(Loc),        // )
-    OpenBrace(Loc),         // {
-    CloseBrace(Loc),        // }
-    OpenAngleBracket(Loc),  // <
-    CloseAngleBracket(Loc), // >
-
-    DirectiveExtern(Loc), //  @extern
-    DirectiveImport(Loc), //  @import
-
-    LangCpp(Loc),  // +c
-    LangJava(Loc), // +j
-    LangObjC(Loc), // +o
-
-    KeywordEnum(Loc),      // enum
-    KeywordRecord(Loc),    // record
-    KeywordInterface(Loc), // interface
-    KeywordStatic(Loc),    // static
-    KeywordDeriving(Loc),  // deriving
-
-    KeywordBool(Loc),     // bool
-    KeywordI8(Loc),       // i8
-    KeywordI16(Loc),      // i16
-    KeywordI32(Loc),      // i32
-    KeywordI64(Loc),      // i64
-    KeywordF32(Loc),      // f32
-    KeywordF64(Loc),      // f64
-    KeywordString(Loc),   // string
-    KeywordBinary(Loc),   // binary
-    KeywordDate(Loc),     // date
-    KeywordList(Loc),     // list
-    KeywordSet(Loc),      // set
-    KeywordMap(Loc),      // map
-    KeywordOptional(Loc), // optional
+pub struct Token {
+    kind: TokenKind,
+    loc: Loc,
 }
 
 impl PartialEq for Token {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Token::Identifier(a, _), Token::Identifier(b, _)) => a == b,
-            (Token::Comment(a, _), Token::Comment(b, _)) => a == b,
-            (Token::Equal(_), Token::Equal(_)) => true,
-            (Token::Colon(_), Token::Colon(_)) => true,
-            (Token::Semicolon(_), Token::Semicolon(_)) => true,
-            (Token::OpenParen(_), Token::OpenParen(_)) => true,
-            (Token::CloseParen(_), Token::CloseParen(_)) => true,
-            (Token::OpenBrace(_), Token::OpenBrace(_)) => true,
-            (Token::CloseBrace(_), Token::CloseBrace(_)) => true,
-            (Token::OpenAngleBracket(_), Token::OpenAngleBracket(_)) => true,
-            (Token::CloseAngleBracket(_), Token::CloseAngleBracket(_)) => true,
-            (Token::DirectiveExtern(_), Token::DirectiveExtern(_)) => true,
-            (Token::DirectiveImport(_), Token::DirectiveImport(_)) => true,
-            (Token::LangCpp(_), Token::LangCpp(_)) => true,
-            (Token::LangJava(_), Token::LangJava(_)) => true,
-            (Token::LangObjC(_), Token::LangObjC(_)) => true,
-            (Token::KeywordEnum(_), Token::KeywordEnum(_)) => true,
-            (Token::KeywordRecord(_), Token::KeywordRecord(_)) => true,
-            (Token::KeywordInterface(_), Token::KeywordInterface(_)) => true,
-            (Token::KeywordStatic(_), Token::KeywordStatic(_)) => true,
-            (Token::KeywordDeriving(_), Token::KeywordDeriving(_)) => true,
-            (Token::KeywordBool(_), Token::KeywordBool(_)) => true,
-            (Token::KeywordI8(_), Token::KeywordI8(_)) => true,
-            (Token::KeywordI16(_), Token::KeywordI16(_)) => true,
-            (Token::KeywordI32(_), Token::KeywordI32(_)) => true,
-            (Token::KeywordI64(_), Token::KeywordI64(_)) => true,
-            (Token::KeywordF32(_), Token::KeywordF32(_)) => true,
-            (Token::KeywordF64(_), Token::KeywordF64(_)) => true,
-            (Token::KeywordString(_), Token::KeywordString(_)) => true,
-            (Token::KeywordBinary(_), Token::KeywordBinary(_)) => true,
-            (Token::KeywordDate(_), Token::KeywordDate(_)) => true,
-            (Token::KeywordList(_), Token::KeywordList(_)) => true,
-            (Token::KeywordSet(_), Token::KeywordSet(_)) => true,
-            (Token::KeywordMap(_), Token::KeywordMap(_)) => true,
-            (Token::KeywordOptional(_), Token::KeywordOptional(_)) => true,
-            _ => false,
-        }
+        self.kind == other.kind
     }
 }
 
@@ -105,6 +74,21 @@ pub fn tokenize(input: &str) -> TokenizeResult {
     let mut iter = input.chars().peekable();
     let mut loc = Loc::default();
     let mut tokens = Vec::new();
+
+    macro_rules! make_token {
+        ($token_kind:ident) => {
+            Token {
+                kind: TokenKind::$token_kind,
+                loc: loc,
+            }
+        };
+        ($token_kind:ident($value:expr)) => {
+            Token {
+                kind: TokenKind::$token_kind($value.into()),
+                loc: loc,
+            }
+        };
+    }
 
     while let Some(c) = iter.next() {
         match c {
@@ -127,11 +111,15 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                     iter.next();
                 }
 
-                if let Some(Token::Comment(last_comment, _)) = tokens.last_mut() {
+                if let Some(Token {
+                    kind: TokenKind::Comment(last_comment),
+                    ..
+                }) = tokens.last_mut()
+                {
                     last_comment.push_str("\n");
                     last_comment.push_str(&comment);
                 } else {
-                    tokens.push(Token::Comment(comment, loc));
+                    tokens.push(make_token!(Comment(comment)));
                 }
                 loc.line += 1;
                 loc.column = 0;
@@ -150,32 +138,32 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                 }
                 let word_len = word.len();
                 match word.as_str() {
-                    "extern" => tokens.push(Token::DirectiveExtern(loc)),
-                    "import" => tokens.push(Token::DirectiveImport(loc)),
+                    "extern" => tokens.push(make_token!(DirectiveExtern)),
+                    "import" => tokens.push(make_token!(DirectiveImport)),
                     _ => return Err(TokenizeError::UnknownDirective(loc)),
                 }
                 loc.column += word_len + 1;
                 continue;
             }
-            '=' => tokens.push(Token::Equal(loc)),
-            ':' => tokens.push(Token::Colon(loc)),
-            ';' => tokens.push(Token::Semicolon(loc)),
-            '(' => tokens.push(Token::OpenParen(loc)),
-            ')' => tokens.push(Token::CloseParen(loc)),
-            '{' => tokens.push(Token::OpenBrace(loc)),
-            '}' => tokens.push(Token::CloseBrace(loc)),
-            '<' => tokens.push(Token::OpenAngleBracket(loc)),
-            '>' => tokens.push(Token::CloseAngleBracket(loc)),
+            '=' => tokens.push(make_token!(Equal)),
+            ':' => tokens.push(make_token!(Colon)),
+            ';' => tokens.push(make_token!(Semicolon)),
+            '(' => tokens.push(make_token!(OpenParen)),
+            ')' => tokens.push(make_token!(CloseParen)),
+            '{' => tokens.push(make_token!(OpenBrace)),
+            '}' => tokens.push(make_token!(CloseBrace)),
+            '<' => tokens.push(make_token!(OpenAngleBracket)),
+            '>' => tokens.push(make_token!(CloseAngleBracket)),
             '+' => {
                 match iter.peek() {
                     Some(&'c') => {
-                        tokens.push(Token::LangCpp(loc));
+                        tokens.push(make_token!(LangCpp));
                     }
                     Some(&'j') => {
-                        tokens.push(Token::LangJava(loc));
+                        tokens.push(make_token!(LangJava));
                     }
                     Some(&'o') => {
-                        tokens.push(Token::LangObjC(loc));
+                        tokens.push(make_token!(LangObjC));
                     }
                     _ => return Err(TokenizeError::UnknownLanguage(loc)),
                 }
@@ -197,26 +185,26 @@ pub fn tokenize(input: &str) -> TokenizeResult {
 
                 let word_len = word.len();
                 match word.as_str() {
-                    "enum" => tokens.push(Token::KeywordEnum(loc)),
-                    "record" => tokens.push(Token::KeywordRecord(loc)),
-                    "interface" => tokens.push(Token::KeywordInterface(loc)),
-                    "static" => tokens.push(Token::KeywordStatic(loc)),
-                    "deriving" => tokens.push(Token::KeywordDeriving(loc)),
-                    "bool" => tokens.push(Token::KeywordBool(loc)),
-                    "i8" => tokens.push(Token::KeywordI8(loc)),
-                    "i16" => tokens.push(Token::KeywordI16(loc)),
-                    "i32" => tokens.push(Token::KeywordI32(loc)),
-                    "i64" => tokens.push(Token::KeywordI64(loc)),
-                    "f32" => tokens.push(Token::KeywordF32(loc)),
-                    "f64" => tokens.push(Token::KeywordF64(loc)),
-                    "string" => tokens.push(Token::KeywordString(loc)),
-                    "binary" => tokens.push(Token::KeywordBinary(loc)),
-                    "date" => tokens.push(Token::KeywordDate(loc)),
-                    "list" => tokens.push(Token::KeywordList(loc)),
-                    "set" => tokens.push(Token::KeywordSet(loc)),
-                    "map" => tokens.push(Token::KeywordMap(loc)),
-                    "optional" => tokens.push(Token::KeywordOptional(loc)),
-                    _ => tokens.push(Token::Identifier(word, loc)),
+                    "enum" => tokens.push(make_token!(KeywordEnum)),
+                    "record" => tokens.push(make_token!(KeywordRecord)),
+                    "interface" => tokens.push(make_token!(KeywordInterface)),
+                    "static" => tokens.push(make_token!(KeywordStatic)),
+                    "deriving" => tokens.push(make_token!(KeywordDeriving)),
+                    "bool" => tokens.push(make_token!(KeywordBool)),
+                    "i8" => tokens.push(make_token!(KeywordI8)),
+                    "i16" => tokens.push(make_token!(KeywordI16)),
+                    "i32" => tokens.push(make_token!(KeywordI32)),
+                    "i64" => tokens.push(make_token!(KeywordI64)),
+                    "f32" => tokens.push(make_token!(KeywordF32)),
+                    "f64" => tokens.push(make_token!(KeywordF64)),
+                    "string" => tokens.push(make_token!(KeywordString)),
+                    "binary" => tokens.push(make_token!(KeywordBinary)),
+                    "date" => tokens.push(make_token!(KeywordDate)),
+                    "list" => tokens.push(make_token!(KeywordList)),
+                    "set" => tokens.push(make_token!(KeywordSet)),
+                    "map" => tokens.push(make_token!(KeywordMap)),
+                    "optional" => tokens.push(make_token!(KeywordOptional)),
+                    _ => tokens.push(make_token!(Identifier(word))),
                 }
                 loc.column += word_len;
                 continue;
@@ -240,13 +228,22 @@ mod tests {
         ($expr:expr, None) => {
             assert_eq!($expr, None);
         };
-        ($expr:expr, Some($token_case:ident)) => {
-            assert_eq!($expr, Some(Token::$token_case(Loc::default())));
-        };
-        ($expr:expr, Some($token_case:ident($value:expr))) => {
+        ($expr:expr, Some($token_kind:ident)) => {
             assert_eq!(
                 $expr,
-                Some(Token::$token_case($value.into(), Loc::default()))
+                Some(Token {
+                    kind: TokenKind::$token_kind,
+                    loc: Loc::default()
+                })
+            );
+        };
+        ($expr:expr, Some($token_kind:ident($value:expr))) => {
+            assert_eq!(
+                $expr,
+                Some(Token {
+                    kind: TokenKind::$token_kind($value.into()),
+                    loc: Loc::default()
+                })
             );
         };
     }
@@ -264,13 +261,7 @@ mod tests {
 
         // # Accounts Domain API
         // accounts_API = interface +c {
-        assert_eq!(
-            tokens.next(),
-            Some(Token::Comment(
-                " Accounts Domain API".to_string(),
-                Loc::default()
-            ))
-        );
+        token_eq!(tokens.next(), Some(Comment(" Accounts Domain API")));
         token_eq!(tokens.next(), Some(Identifier("accounts_API")));
         token_eq!(tokens.next(), Some(Equal));
         token_eq!(tokens.next(), Some(KeywordInterface));
