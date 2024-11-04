@@ -20,6 +20,9 @@ pub enum Token {
     OpenAngleBracket(Loc),  // <
     CloseAngleBracket(Loc), // >
 
+    DirectiveExtern(Loc), //  @extern
+    DirectiveImport(Loc), //  @import
+
     LangCpp(Loc),  // +c
     LangJava(Loc), // +j
     LangObjC(Loc), // +o
@@ -60,6 +63,8 @@ impl PartialEq for Token {
             (Token::CloseBrace(_), Token::CloseBrace(_)) => true,
             (Token::OpenAngleBracket(_), Token::OpenAngleBracket(_)) => true,
             (Token::CloseAngleBracket(_), Token::CloseAngleBracket(_)) => true,
+            (Token::DirectiveExtern(_), Token::DirectiveExtern(_)) => true,
+            (Token::DirectiveImport(_), Token::DirectiveImport(_)) => true,
             (Token::LangCpp(_), Token::LangCpp(_)) => true,
             (Token::LangJava(_), Token::LangJava(_)) => true,
             (Token::LangObjC(_), Token::LangObjC(_)) => true,
@@ -90,6 +95,8 @@ impl PartialEq for Token {
 #[derive(Debug, PartialEq)]
 pub enum TokenizeError {
     InvalidChar(Loc),
+    UnknownDirective(Loc),
+    UnknownLanguage(Loc),
 }
 
 pub type TokenizeResult = Result<Vec<Token>, TokenizeError>;
@@ -130,6 +137,26 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                 loc.column = 0;
                 continue;
             }
+            '@' => {
+                // read a word after '@'
+                let mut word = String::new();
+                while let Some(&c) = iter.peek() {
+                    if c.is_alphabetic() || c == '_' {
+                        word.push(c);
+                        iter.next();
+                    } else {
+                        break;
+                    }
+                }
+                let word_len = word.len();
+                match word.as_str() {
+                    "extern" => tokens.push(Token::DirectiveExtern(loc)),
+                    "import" => tokens.push(Token::DirectiveImport(loc)),
+                    _ => return Err(TokenizeError::UnknownDirective(loc)),
+                }
+                loc.column += word_len + 1;
+                continue;
+            }
             '=' => tokens.push(Token::Equal(loc)),
             ':' => tokens.push(Token::Colon(loc)),
             ';' => tokens.push(Token::Semicolon(loc)),
@@ -150,7 +177,7 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                     Some(&'o') => {
                         tokens.push(Token::LangObjC(loc));
                     }
-                    _ => return Err(TokenizeError::InvalidChar(loc)),
+                    _ => return Err(TokenizeError::UnknownLanguage(loc)),
                 }
                 iter.next();
                 loc.column += 2;
@@ -351,6 +378,26 @@ mod tests {
         assert_eq!(
             tokenize(input),
             Err(TokenizeError::InvalidChar(Loc { line: 0, column: 4 }))
+        );
+    }
+
+    #[test]
+    fn test_tokenize_error_2() {
+        let input = "xyz\n+x";
+
+        assert_eq!(
+            tokenize(input),
+            Err(TokenizeError::UnknownLanguage(Loc { line: 1, column: 0 }))
+        );
+    }
+
+    #[test]
+    fn test_tokenize_error_3() {
+        let input = "@unknown";
+
+        assert_eq!(
+            tokenize(input),
+            Err(TokenizeError::UnknownDirective(Loc { line: 0, column: 0 }))
         );
     }
 }
