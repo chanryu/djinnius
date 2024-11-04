@@ -81,13 +81,13 @@ pub fn tokenize(input: &str) -> TokenizeResult {
         ($token_kind:ident) => {
             Token {
                 kind: TokenKind::$token_kind,
-                loc: loc,
+                loc,
             }
         };
         ($token_kind:ident($value:expr)) => {
             Token {
                 kind: TokenKind::$token_kind($value.into()),
-                loc: loc,
+                loc,
             }
         };
     }
@@ -118,7 +118,7 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                     ..
                 }) = tokens.last_mut()
                 {
-                    last_comment.push_str("\n");
+                    last_comment.push('\n');
                     last_comment.push_str(&comment);
                 } else {
                     tokens.push(make_token!(Comment(comment)));
