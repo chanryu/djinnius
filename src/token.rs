@@ -20,8 +20,9 @@ pub enum TokenKind {
     OpenAngleBracket,  // <
     CloseAngleBracket, // >
 
-    DirectiveExtern, //  @extern
-    DirectiveImport, //  @import
+    DirectiveExtern,  //  @extern
+    DirectiveImport,  //  @import
+    FilePath(String), // "path/to/file.djinni"
 
     LangCpp,  // +c
     LangJava, // +j
@@ -63,7 +64,8 @@ impl PartialEq for Token {
 
 #[derive(Debug, PartialEq)]
 pub enum TokenizeError {
-    InvalidChar(Loc),
+    UnexpectedChar(Loc),
+    InvalidFilePath(Loc),
     UnknownDirective(Loc),
     UnknownLanguage(Loc),
 }
@@ -145,6 +147,26 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                 loc.column += word_len + 1;
                 continue;
             }
+            '"' => {
+                let mut path = String::new();
+                while let Some(&c) = iter.peek() {
+                    match c {
+                        '\n' => return Err(TokenizeError::InvalidFilePath(loc)),
+                        '"' => {
+                            iter.next();
+                            break;
+                        }
+                        _ => {
+                            path.push(c);
+                            iter.next();
+                        }
+                    }
+                }
+                let path_len = path.len();
+                tokens.push(make_token!(FilePath(path)));
+                loc.column += path_len + 2;
+                continue;
+            }
             '=' => tokens.push(make_token!(Equal)),
             ':' => tokens.push(make_token!(Colon)),
             ';' => tokens.push(make_token!(Semicolon)),
@@ -210,7 +232,7 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                 continue;
             }
             _ => {
-                return Err(TokenizeError::InvalidChar(loc));
+                return Err(TokenizeError::UnexpectedChar(loc));
             }
         }
 
@@ -363,12 +385,30 @@ mod tests {
     }
 
     #[test]
+    fn test_tokenize_4() {
+        let input = r#"
+            @extern "path/to/file.yaml"
+            @import "path/to/file.djinni"
+        "#;
+
+        let mut tokens = tokenize(input).unwrap().into_iter();
+
+        token_eq!(tokens.next(), Some(DirectiveExtern));
+        token_eq!(tokens.next(), Some(FilePath("path/to/file.yaml")));
+
+        token_eq!(tokens.next(), Some(DirectiveImport));
+        token_eq!(tokens.next(), Some(FilePath("path/to/file.djinni")));
+
+        token_eq!(tokens.next(), None);
+    }
+
+    #[test]
     fn test_tokenize_error_1() {
         let input = "abc -";
 
         assert_eq!(
             tokenize(input),
-            Err(TokenizeError::InvalidChar(Loc { line: 0, column: 4 }))
+            Err(TokenizeError::UnexpectedChar(Loc { line: 0, column: 4 }))
         );
     }
 

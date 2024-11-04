@@ -1,6 +1,6 @@
-use token::tokenize;
-
 mod token;
+
+use token::tokenize;
 
 fn main() {
     match tokenize("") {
